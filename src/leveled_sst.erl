@@ -238,8 +238,8 @@
 %%
 %% The filename should include the file extension.
 sst_open(RootPath, Filename, OptsSST, Level) ->
-    {ok, Pid} = gen_fsm:start_link(?MODULE, [], []),
-    case gen_fsm:sync_send_event(Pid,
+    {ok, Pid} = gen_fsm_compat:start_link(?MODULE, [], []),
+    case gen_fsm_compat:sync_send_event(Pid,
                                     {sst_open,
                                         RootPath, Filename, OptsSST, Level},
                                     infinity) of
@@ -262,12 +262,12 @@ sst_new(RootPath, Filename, Level, KVList, MaxSQN, OptsSST) ->
             KVList, MaxSQN, OptsSST, ?INDEX_MODDATE).
 
 sst_new(RootPath, Filename, Level, KVList, MaxSQN, OptsSST, IndexModDate) ->
-    {ok, Pid} = gen_fsm:start_link(?MODULE, [], []),
+    {ok, Pid} = gen_fsm_compat:start_link(?MODULE, [], []),
     PressMethod0 = compress_level(Level, OptsSST#sst_options.press_method),
     OptsSST0 = OptsSST#sst_options{press_method = PressMethod0},
     {[], [], SlotList, FK}  =
         merge_lists(KVList, OptsSST0, IndexModDate),
-    case gen_fsm:sync_send_event(Pid,
+    case gen_fsm_compat:sync_send_event(Pid,
                                     {sst_new,
                                         RootPath,
                                         Filename,
@@ -323,8 +323,8 @@ sst_new(RootPath, Filename,
         [] ->
             empty;
         _ ->
-            {ok, Pid} = gen_fsm:start_link(?MODULE, [], []),
-            case gen_fsm:sync_send_event(Pid,
+            {ok, Pid} = gen_fsm_compat:start_link(?MODULE, [], []),
+            case gen_fsm_compat:sync_send_event(Pid,
                                             {sst_new,
                                                 RootPath,
                                                 Filename,
@@ -353,9 +353,9 @@ sst_newlevelzero(RootPath, Filename,
                     MaxSQN, OptsSST) ->
     PressMethod0 = compress_level(0, OptsSST#sst_options.press_method),
     OptsSST0 = OptsSST#sst_options{press_method = PressMethod0},
-    {ok, Pid} = gen_fsm:start_link(?MODULE, [], []),
+    {ok, Pid} = gen_fsm_compat:start_link(?MODULE, [], []),
     % Initiate the file into the "starting" state
-    ok = gen_fsm:sync_send_event(Pid,
+    ok = gen_fsm_compat:sync_send_event(Pid,
                                 {sst_newlevelzero,
                                     RootPath,
                                     Filename,
@@ -367,10 +367,10 @@ sst_newlevelzero(RootPath, Filename,
     ok = 
         case is_list(Fetcher) of
             true ->
-                gen_fsm:send_event(Pid, {complete_l0startup, Fetcher});
+                gen_fsm_compat:send_event(Pid, {complete_l0startup, Fetcher});
             false ->
                 % Fetcher is a function
-                gen_fsm:send_event(Pid, {sst_returnslot, none, Fetcher, Slots})
+                gen_fsm_compat:send_event(Pid, {sst_returnslot, none, Fetcher, Slots})
                 % Start the fetch loop (async).  Having the fetch loop running
                 % on async message passing means that the SST file can now be
                 % closed while the fetch loop is still completing
@@ -393,13 +393,13 @@ sst_get(Pid, LedgerKey) ->
 %% Return a Key, Value pair matching a Key or not_present if the Key is not in
 %% the store (with the magic hash precalculated).
 sst_get(Pid, LedgerKey, Hash) ->
-    gen_fsm:sync_send_event(Pid, {get_kv, LedgerKey, Hash}, infinity).
+    gen_fsm_compat:sync_send_event(Pid, {get_kv, LedgerKey, Hash}, infinity).
 
 -spec sst_getmaxsequencenumber(pid()) -> integer().
 %% @doc
 %% Get the maximume sequence number for this SST file
 sst_getmaxsequencenumber(Pid) ->
-    gen_fsm:sync_send_event(Pid, get_maxsequencenumber, infinity).
+    gen_fsm_compat:sync_send_event(Pid, get_maxsequencenumber, infinity).
 
 -spec sst_expandpointer(expandable_pointer(), 
                             list(expandable_pointer()), 
@@ -426,21 +426,21 @@ sst_expandpointer(Pointer, MorePointers, ScanWidth, SegmentList, LowLastMod) ->
 %% on it have finished).  No polling will be done if the Penciller pid
 %% is 'false'
 sst_setfordelete(Pid, Penciller) ->
-    gen_fsm:sync_send_event(Pid, {set_for_delete, Penciller}, infinity).
+    gen_fsm_compat:sync_send_event(Pid, {set_for_delete, Penciller}, infinity).
 
 -spec sst_clear(pid()) -> ok.
 %% @doc
 %% For this file to be closed and deleted
 sst_clear(Pid) ->
-    gen_fsm:sync_send_event(Pid, {set_for_delete, false}, infinity),
-    gen_fsm:sync_send_event(Pid, close).
+    gen_fsm_compat:sync_send_event(Pid, {set_for_delete, false}, infinity),
+    gen_fsm_compat:sync_send_event(Pid, close).
 
 -spec sst_deleteconfirmed(pid()) -> ok.
 %% @doc
 %% Allows a penciller to confirm to a SST file that it can be cleared, as it
 %% is no longer in use
 sst_deleteconfirmed(Pid) ->
-    gen_fsm:send_event(Pid, close).
+    gen_fsm_compat:send_event(Pid, close).
 
 -spec sst_checkready(pid()) -> {ok, string(), 
                                 leveled_codec:ledger_key(), 
@@ -450,7 +450,7 @@ sst_deleteconfirmed(Pid) ->
 %% the filename and the {startKey, EndKey} for the manifest.
 sst_checkready(Pid) ->
     %% Only used in test
-    gen_fsm:sync_send_event(Pid, background_complete).
+    gen_fsm_compat:sync_send_event(Pid, background_complete).
 
 -spec sst_switchlevels(pid(), pos_integer()) -> ok.
 %% @doc
@@ -459,13 +459,13 @@ sst_checkready(Pid) ->
 %% file, so don't want all the startup state to be held on memory - want to
 %% proactively drop it
 sst_switchlevels(Pid, NewLevel) ->
-    gen_fsm:send_event(Pid, {switch_levels, NewLevel}).
+    gen_fsm_compat:send_event(Pid, {switch_levels, NewLevel}).
 
 -spec sst_close(pid()) -> ok.
 %% @doc
 %% Close the file
 sst_close(Pid) ->
-    gen_fsm:sync_send_event(Pid, close).
+    gen_fsm_compat:sync_send_event(Pid, close).
 
 -spec sst_printtimings(pid()) -> ok.
 %% @doc
@@ -473,7 +473,7 @@ sst_close(Pid) ->
 %% forced to be printed.
 %% Used in unit tests to force the printing of timings
 sst_printtimings(Pid) ->
-    gen_fsm:sync_send_event(Pid, print_timings).
+    gen_fsm_compat:sync_send_event(Pid, print_timings).
 
 
 %%%============================================================================
@@ -612,7 +612,7 @@ starting({sst_returnslot, FetchedSlot, FetchFun, SlotCount}, State) ->
         end, 
     case length(FetchedSlots) == SlotCount of
         true ->
-            gen_fsm:send_event(Self, complete_l0startup),
+            gen_fsm_compat:send_event(Self, complete_l0startup),
             {next_state,
                 starting,
                 % Reverse the slots so that they are back in the expected
@@ -621,7 +621,7 @@ starting({sst_returnslot, FetchedSlot, FetchFun, SlotCount}, State) ->
         false ->
             ReturnFun =
                 fun(NextSlot) ->
-                    gen_fsm:send_event(Self, 
+                    gen_fsm_compat:send_event(Self, 
                                         {sst_returnslot, NextSlot,
                                             FetchFun, SlotCount})
                 end,
@@ -914,7 +914,7 @@ sst_getkvrange(Pid, StartKey, EndKey, ScanWidth) ->
 %% leveled_tictac
 sst_getfilteredrange(Pid, StartKey, EndKey, ScanWidth, SegList, LowLastMod) ->
     SegList0 = tune_seglist(SegList),
-    case gen_fsm:sync_send_event(Pid,
+    case gen_fsm_compat:sync_send_event(Pid,
                                     {get_kvrange, 
                                         StartKey, EndKey, 
                                         ScanWidth, SegList0, LowLastMod},
@@ -954,7 +954,7 @@ sst_getslots(Pid, SlotList) ->
 sst_getfilteredslots(Pid, SlotList, SegList, LowLastMod) ->
     SegL0 = tune_seglist(SegList),
     {SlotBins, PressMethod, IdxModDate} = 
-        gen_fsm:sync_send_event(Pid, 
+        gen_fsm_compat:sync_send_event(Pid, 
                                 {get_slots, SlotList, SegL0, LowLastMod},
                                 infinity),
     {L, _BIC} = binaryslot_reader(SlotBins, PressMethod, IdxModDate, SegL0),
@@ -3474,8 +3474,8 @@ key_dominates_test() ->
                     key_dominates([KV7|KL2], [KV2], {true, 1})).
 
 nonsense_coverage_test() ->
-    {ok, Pid} = gen_fsm:start_link(?MODULE, [], []),
-    ok = gen_fsm:send_all_state_event(Pid, nonsense),
+    {ok, Pid} = gen_fsm_compat:start_link(?MODULE, [], []),
+    ok = gen_fsm_compat:send_all_state_event(Pid, nonsense),
     ?assertMatch({ok, reader, #state{}}, code_change(nonsense,
                                                         reader,
                                                         #state{},
@@ -3548,7 +3548,7 @@ take_max_lastmoddate_test() ->
     ?assertMatch(1, take_max_lastmoddate(0, 1)).
 
 stopstart_test() ->
-    {ok, Pid} = gen_fsm:start_link(?MODULE, [], []),
+    {ok, Pid} = gen_fsm_compat:start_link(?MODULE, [], []),
     % check we can close in the starting state.  This may happen due to the 
     % fetcher on new level zero files working in a loop
     ok = sst_close(Pid).
